@@ -15,6 +15,23 @@
 
 D programming language bindings for [SurrealDB](https://surrealdb.com) -- based on the [official C bindings](https://github.com/surrealdb/surrealdb.c).
 
+> ⚠️ **Work In Progress**: This is an early development version of SurrealDB D bindings that i'm developing for my projects. 
+> While functional, the API may change significantly between versions. Use in production at your own risk.
+
+## Current Status
+
+- [x] Basic CRUD operations
+- [x] Query execution
+- [x] Connection management
+- [ ] Complete test coverage
+- [ ] Stable API
+- [ ] High-level wrapper (planned)
+- [ ] Documentation website
+- [ ] CI/CD pipeline
+- [ ] Package publication
+
+_**Version**: 0.1.0-alpha_
+
 ## Prerequisites
 
 - D compiler ( Either DMD or LDC -- GDC has not yet been tested)
@@ -32,8 +49,9 @@ dub build
 
 In the project's root directory. Dub will automatically build the SurrealDB Rust library during the D build process.
 
-
 ## Example Usage
+
+> Note: API may change in future versions. Check the [releases page](link-to-releases) for updates.
 
 ```d
 import std.stdio;
@@ -153,14 +171,24 @@ surrealdb/
 
 ## License
 
-BSL 1.1
+BSL 1.1 - The same license as SurrealDB. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+As this project is in active development, we especially welcome:
+- Bug reports
+- Feature requests
+- Documentation improvements
+- Test cases
+- API design suggestions
+
+Please check the Issues page to see what's being worked on as it crops up, and feel free to submit a bug report if you find any issues.
 
 ## Notes
 
 - All strings passed to C functions _must_ be null-terminated -- or you're gonna have a bad time.
 - Memory management should use `scope(exit)` for cleanup
 - Error handling should check both return values and error strings
+- This is an early development version - API may change significantly
