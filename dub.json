@@ -1,0 +1,26 @@
+{
+    "name": "surrealdb",
+    "description": "D bindings for SurrealDB",
+    "authors": ["Chris C"],
+    "copyright": "Copyright © 2024, Chris C",
+    "license": "MIT",
+    "targetType": "library",
+    "sourcePaths": ["source/bindings"],
+    "importPaths": ["source/surrealdb"],
+    "libs": ["surrealdb_c"],
+    "lflags": ["-L$PACKAGE_DIR/source/surrealdb/target/release"],
+    "configurations": [
+        {
+            "name": "library",
+            "targetType": "library",
+            "preBuildCommands": [
+                "cd $PACKAGE_DIR/source/surrealdb && cargo build --release"
+            ]
+        },
+        {
+            "name": "example",
+            "targetType": "executable",
+            "mainSourceFile": "source/app.d"
+        }
+    ]
+}
