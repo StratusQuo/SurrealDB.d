@@ -171,7 +171,7 @@ surrealdb/
 
 ## License
 
-BSL 1.1 - The same license as SurrealDB. See [LICENSE](LICENSE) for details.
+BSL 1.1
 
 ## Contributing
 
