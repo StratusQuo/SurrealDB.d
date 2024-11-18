@@ -3,7 +3,7 @@
     "description": "D bindings for SurrealDB",
     "authors": ["Chris C"],
     "copyright": "Copyright © 2024, Chris C",
-    "license": "MIT",
+    "license": "BSL-1.1",
     "targetType": "library",
     "sourcePaths": ["source/bindings"],
     "importPaths": ["source/surrealdb"],
