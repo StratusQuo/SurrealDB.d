@@ -14,8 +14,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        dc: [dmd-latest, ldc-latest]
+        include:
+          # Ubuntu with both DMD and LDC
+          - os: ubuntu-latest
+            dc: dmd-latest
+          - os: ubuntu-latest
+            dc: ldc-latest
+          # Windows with both DMD and LDC
+          - os: windows-latest
+            dc: dmd-latest
+          - os: windows-latest
+            dc: ldc-latest
+          # macOS with LDC only (as DMD doesn't support ARM)
+          - os: macos-14
+            dc: ldc-latest
+          - os: macos-latest
+            dc: ldc-latest
+      fail-fast: false
 
     steps:
     - uses: actions/checkout@v3
@@ -26,21 +41,42 @@ jobs:
       uses: dlang-community/setup-dlang@v1
       with:
         compiler: ${{ matrix.dc }}
+      if: ${{ !startsWith(matrix.os, 'macos-14') || matrix.dc != 'dmd-latest' }}
+
+    - name: Install D compiler on macOS ARM
+      if: startsWith(matrix.os, 'macos-14')
+      run: |
+        brew install ldc
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        profile: minimal
+        targets: aarch64-apple-darwin,x86_64-apple-darwin
 
     - name: Build
-      run: dub build --compiler=${{ matrix.dc }}
+      run: |
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export PATH="/opt/homebrew/opt/ldc/bin:$PATH"
+        fi
+        dub build --compiler=ldc2
+      shell: bash
 
     - name: Run Tests
-      run: dub test --compiler=${{ matrix.dc }}
+      run: |
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export PATH="/opt/homebrew/opt/ldc/bin:$PATH"
+        fi
+        dub test --compiler=ldc2
+      shell: bash
 
     - name: Run Example
-      run: dub run -c example --compiler=${{ matrix.dc }}
+      run: |
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export PATH="/opt/homebrew/opt/ldc/bin:$PATH"
+        fi
+        dub run -c example --compiler=ldc2
+      shell: bash
 
   docs:
     name: Generate Documentation
@@ -53,7 +89,7 @@ jobs:
     - name: Install D compiler
       uses: dlang-community/setup-dlang@v1
       with:
-        compiler: dmd-latest
+        compiler: ldc-latest
 
     - name: Generate Documentation
       run: |
@@ -67,18 +103,20 @@ jobs:
 
   release:
     name: Create Release Build
+    needs: test
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'release'
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
             artifact_name: surrealdb-d-linux
           - os: windows-latest
             artifact_name: surrealdb-d-windows
+          - os: macos-14
+            artifact_name: surrealdb-d-macos-arm
           - os: macos-latest
-            artifact_name: surrealdb-d-macos
+            artifact_name: surrealdb-d-macos-intel
 
     steps:
     - uses: actions/checkout@v3
@@ -89,22 +127,35 @@ jobs:
       uses: dlang-community/setup-dlang@v1
       with:
         compiler: ldc-latest
+      if: ${{ !startsWith(matrix.os, 'macos-14') }}
+
+    - name: Install D compiler on macOS ARM
+      if: startsWith(matrix.os, 'macos-14')
+      run: |
+        brew install ldc
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        profile: minimal
+        targets: aarch64-apple-darwin,x86_64-apple-darwin
 
     - name: Build Release
-      run: dub build -b release
+      run: |
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          export PATH="/opt/homebrew/opt/ldc/bin:$PATH"
+        fi
+        dub build -b release --compiler=ldc2
+      shell: bash
 
     - name: Package Artifacts
+      shell: bash
       run: |
         mkdir -p artifacts
-        cp -r README.md LICENSE example.d ./artifacts/
-        cp -r source/bindings ./artifacts/
-        # Add platform-specific commands here
+        cp -r README.md LICENSE source/app.d artifacts/
+        cp -r source/bindings artifacts/
+        cd artifacts
+        zip -r "../${{ matrix.artifact_name }}.zip" .
 
     - name: Upload Release Artifacts
       uses: actions/upload-release-asset@v1
@@ -112,6 +163,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./artifacts/${{ matrix.artifact_name }}.zip
+        asset_path: ./${{ matrix.artifact_name }}.zip
         asset_name: ${{ matrix.artifact_name }}.zip
         asset_content_type: application/zip
