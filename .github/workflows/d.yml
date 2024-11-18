@@ -1,0 +1,117 @@
+name: SurrealDB.D CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ created ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        dc: [dmd-latest, ldc-latest]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Install D compiler
+      uses: dlang-community/setup-dlang@v1
+      with:
+        compiler: ${{ matrix.dc }}
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+
+    - name: Build
+      run: dub build --compiler=${{ matrix.dc }}
+
+    - name: Run Tests
+      run: dub test --compiler=${{ matrix.dc }}
+
+    - name: Run Example
+      run: dub run -c example --compiler=${{ matrix.dc }}
+
+  docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install D compiler
+      uses: dlang-community/setup-dlang@v1
+      with:
+        compiler: dmd-latest
+
+    - name: Generate Documentation
+      run: |
+        dub build -b ddox
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+
+  release:
+    name: Create Release Build
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: surrealdb-d-linux
+          - os: windows-latest
+            artifact_name: surrealdb-d-windows
+          - os: macos-latest
+            artifact_name: surrealdb-d-macos
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Install D compiler
+      uses: dlang-community/setup-dlang@v1
+      with:
+        compiler: ldc-latest
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+
+    - name: Build Release
+      run: dub build -b release
+
+    - name: Package Artifacts
+      run: |
+        mkdir -p artifacts
+        cp -r README.md LICENSE example.d ./artifacts/
+        cp -r source/bindings ./artifacts/
+        # Add platform-specific commands here
+
+    - name: Upload Release Artifacts
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./artifacts/${{ matrix.artifact_name }}.zip
+        asset_name: ${{ matrix.artifact_name }}.zip
+        asset_content_type: application/zip
